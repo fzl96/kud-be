@@ -1,0 +1,272 @@
+import { PrismaClient, Prisma } from "@prisma/client";
+import { Request, Response } from "express";
+import { z } from "zod";
+
+const prisma = new PrismaClient();
+const productSchema = z.object({
+  id: z.string().optional(),
+  quantity: z.number().min(0).optional(),
+});
+
+export const getSales = async (req: Request, res: Response) => {
+  try {
+    const sales = await prisma.sale.findMany({
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+        total: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+    res.status(200).json(sales);
+  } catch (err) {
+    if (err instanceof Error) res.status(500).json({ error: err.message });
+  }
+};
+
+export const getSale = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const sale = await prisma.sale.findUnique({
+      where: { id: id as string },
+      include: {
+        products: {
+          select: {
+            quantity: true,
+            productId: true,
+            product: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      id: sale?.id,
+      customer: sale?.customer,
+      total: sale?.total,
+      products: sale?.products.map((product) => ({
+        id: product.productId,
+        quantity: product.quantity,
+        name: product.product.name,
+      })),
+      createdAt: sale?.createdAt,
+      updatedAt: sale?.updatedAt,
+    });
+  } catch (err) {
+    if (err instanceof Error) res.status(500).json({ error: err.message });
+  }
+};
+
+export const createSale = async (req: Request, res: Response) => {
+  try {
+    const { customerId, products } = req.body;
+    // check if customer and products exist in the request body
+    if (!customerId || !products) {
+      res.status(400).json({ error: "Customer dan produk diperlukan" });
+      return;
+    }
+
+    const isProductValid = products.every(
+      (product: any) => productSchema.safeParse(product).success
+    );
+
+    // check if the products are valid
+    if (!isProductValid) {
+      res.status(400).json({ error: isProductValid.error.issues });
+      return;
+    }
+
+    // get the price of the products
+    const productPrices = await prisma.product.findMany({
+      where: {
+        id: {
+          in: products.map((product: any) => product.id),
+        },
+      },
+      select: {
+        id: true,
+        price: true,
+      },
+    });
+
+    // create the sale
+    const sale = await prisma.sale.create({
+      data: {
+        customerId,
+        total: products.reduce(
+          (acc: number, product: any) =>
+            acc +
+            productPrices.find((p) => p.id === product.id)?.price! *
+              product.quantity,
+          0
+        ),
+        products: {
+          create: products.map((product: any) => ({
+            quantity: product.quantity,
+            productId: product.id,
+            // multiply the price of the product by the quantity
+            total:
+              productPrices.find((p) => p.id === product.id)?.price! *
+              product.quantity,
+          })),
+        },
+      },
+    });
+
+    res.status(201).json(sale);
+  } catch (err) {
+    console.log(err);
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2025") {
+        res.status(404).json({ error: "Customer tidak ditemukan" });
+        return;
+      } else {
+        if (err instanceof Error) {
+          res.status(500).json({ error: err.message });
+        }
+      }
+    }
+  }
+};
+
+export const updateSale = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  // const { customerId, products } = req.body;
+  // try {
+  //   // get the price of the products
+  //   const productPrices = await prisma.product.findMany({
+  //     where: {
+  //       id: {
+  //         in: products.map((product: any) => product.id),
+  //       },
+  //     },
+  //     select: {
+  //       id: true,
+  //       price: true,
+  //     },
+  //   });
+
+  //   const sale = prisma.sale.update({
+  //     where: { id: id as string },
+  //     data: {
+  //       customer: { connect: { id: customerId } },
+  //       total: products.reduce(
+  //         (acc: number, product: any) =>
+  //           acc +
+  //           productPrices.find((p) => p.id === product.id)?.price! *
+  //             product.quantity,
+  //         0
+  //       ),
+  //     },
+  //   });
+
+  //   const existingProductSale = await prisma.productSale.findMany({
+  //     where: {
+  //       saleId: id,
+  //     },
+  //   });
+
+  //   const productSaleIds = products.map((product: any) => product.id);
+
+  //   const deleteProductSale = prisma.productSale.deleteMany({
+  //     where: {
+  //       productId: {
+  //         notIn: productSaleIds,
+  //       },
+  //       saleId: id,
+  //     },
+  //   });
+
+  //   const updateProductSale = existingProductSale.filter((productSale) =>
+  //     productSaleIds.includes(productSale.productId)
+  //   );
+  //   // get the products that are not in the database in exisstinProductSale
+  //   const createProductSales = products.filter(
+  //     (product: any) =>
+  //       !existingProductSale
+  //         .map((productSale) => productSale.productId)
+  //         .includes(product.id)
+  //   );
+
+  //   const saleResult = await prisma.$transaction([
+  //     sale,
+  //     deleteProductSale,
+  //     ...updateProductSale.map((productSale) =>
+  //       prisma.productSale.update({
+  //         where: {
+  //           saleId_productId: {
+  //             saleId: productSale.saleId,
+  //             productId: productSale.productId,
+  //           },
+  //         },
+  //         data: {
+  //           quantity: productSale.quantity,
+  //           total: productSale.total,
+  //         },
+  //       })
+  //     ),
+  //     ...createProductSales.map((productSale: any) => {
+  //       prisma.productSale.create({
+  //         data: {
+  //           quantity: productSale.quantity,
+  //           productId: productSale.id,
+  //           saleId: id,
+  //           total:
+  //             productPrices.find((p) => p.id === productSale.id)?.price! *
+  //             productSale.quantity,
+  //         },
+  //       });
+  //     }),
+  //   ]);
+  //   res.status(200).json(saleResult[0]);
+  // } catch (err) {
+  //   if (err instanceof Error) {
+  //     console.log(err.message);
+
+  //     res.status(500).json({ error: err.message });
+  //   }
+  // }
+  res.status(400).json({ error: "Data penjualan tidak bisa diubah" });
+};
+
+export const deleteSale = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    // delete the sale and all the items
+    const productSale = prisma.productSale.deleteMany({
+      where: {
+        saleId: id,
+      },
+    });
+
+    const sale = prisma.sale.delete({
+      where: { id: id as string },
+    });
+
+    const [saleDeleted, productSaleDeleted] = await prisma.$transaction([
+      productSale,
+      sale,
+    ]);
+
+    res.status(200).json({ message: "Sale deleted" });
+  } catch (err) {
+    console.log(err);
+    if (err instanceof Error) res.status(500).json({ error: err.message });
+  }
+};

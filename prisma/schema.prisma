@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  permissions String[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  active    Boolean  @default(true)
+  sales     Sale[]
+}
+
+model Sale {
+  id         String        @id @default(cuid())
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  customerId String
+  total      Float
+  products   ProductSale[]
+}
+
+model Product {
+  id         String         @id @default(cuid())
+  name       String         @unique
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  categoryId String
+  category   Category       @relation(fields: [categoryId], references: [id])
+  stock      Int
+  price      Float
+  active     Boolean        @default(true)
+  sales      ProductSale[]
+  purchases  PurchaseItem[]
+}
+
+model ProductSale {
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  total     Float
+
+  @@id([saleId, productId])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Supplier {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  address   String?
+  phone     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  active    Boolean    @default(true)
+  purchases Purchase[]
+}
+
+model Purchase {
+  id         String         @id @default(cuid())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  total      Float
+  supplierId String
+  supplier   Supplier       @relation(fields: [supplierId], references: [id])
+  products   PurchaseItem[]
+}
+
+model PurchaseItem {
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  purchaseId    String
+  Purchase      Purchase @relation(fields: [purchaseId], references: [id])
+  quantity      Int
+  purchasePrice Float
+  total         Float
+
+  @@id([purchaseId, productId])
+}
