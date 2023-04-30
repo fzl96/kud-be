@@ -200,6 +200,7 @@ export const updatePurchase = async (req: Request, res: Response) => {
           },
           quantity: item.quantity,
           purchasePrice: item.purchasePrice,
+          total: item.purchasePrice * item.quantity,
         })),
         update: itemToUpdate.map((item: any) => ({
           where: {
@@ -211,6 +212,7 @@ export const updatePurchase = async (req: Request, res: Response) => {
           data: {
             quantity: item.quantity,
             purchasePrice: item.purchasePrice,
+            total: item.purchasePrice * item.quantity,
           },
         })),    
         delete: itemToDelete.map((item) => ({
@@ -220,7 +222,13 @@ export const updatePurchase = async (req: Request, res: Response) => {
           },
         })),
       };
+      updateData.total = items.reduce(
+        (acc: number, item: any) => acc + item.purchasePrice * item.quantity,
+        0
+      );
     }
+
+
 
     const purchase = prisma.purchase.update({
       where: { id: id as string },

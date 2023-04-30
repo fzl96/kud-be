@@ -8,6 +8,7 @@ import customersRoute from "./routes/customers.route";
 import salesRoute from "./routes/sales.route";
 import purchasesRoute from "./routes/purchases.route";
 import suppliersRoute from "./routes/suppliers.route";
+import { getSalesData } from "./controllers/dashboard.controller";
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
@@ -24,6 +25,7 @@ app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
+app.get("/dashboard/:year", getSalesData);
 app.use("/categories", categoriesRoute);
 app.use("/products", productsRoute);
 app.use("/users", usersRoute);

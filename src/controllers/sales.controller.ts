@@ -60,6 +60,8 @@ export const getSale = async (req: Request, res: Response) => {
       id: sale?.id,
       customer: sale?.customer,
       total: sale?.total,
+      cash: sale?.cash,
+      change: sale?.change,
       products: sale?.products.map((product) => ({
         id: product.productId,
         quantity: product.quantity,
@@ -75,7 +77,7 @@ export const getSale = async (req: Request, res: Response) => {
 
 export const createSale = async (req: Request, res: Response) => {
   try {
-    const { customerId, products } = req.body;
+    const { customerId, products, cash, change } = req.body;
     // check if customer and products exist in the request body
     if (!customerId || !products) {
       res.status(400).json({ error: "Customer dan produk diperlukan" });
@@ -106,9 +108,11 @@ export const createSale = async (req: Request, res: Response) => {
     });
 
     // create the sale
-    const sale = await prisma.sale.create({
+    const sale = prisma.sale.create({
       data: {
         customerId,
+        cash,
+        change,
         total: products.reduce(
           (acc: number, product: any) =>
             acc +
@@ -129,7 +133,22 @@ export const createSale = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json(sale);
+    const result = await prisma.$transaction([
+      sale,
+      ...products.map((product: any) => {
+        return prisma.product.update({
+          where: { id: product.id },
+          data: {
+            stock: {
+              decrement: product.quantity,
+            },
+          },
+        });
+      }
+      )
+    ]);
+
+    res.status(201).json("Penjualan berhasil ditambahkan");
   } catch (err) {
     console.log(err);
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -245,9 +264,21 @@ export const updateSale = async (req: Request, res: Response) => {
   res.status(400).json({ error: "Data penjualan tidak bisa diubah" });
 };
 
-export const deleteSale = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+export const deleteSale = async (id: string) => {
+
+    // get the products in the sale
+    const products = await prisma.productSale.findMany({
+      where: {
+        saleId: id,
+      },
+    });
+
+    // get the quantity of the products
+    const productQuantity = products.map((product) => ({
+      id: product.productId,
+      quantity: product.quantity,
+    }));
+
     // delete the sale and all the items
     const productSale = prisma.productSale.deleteMany({
       where: {
@@ -256,17 +287,41 @@ export const deleteSale = async (req: Request, res: Response) => {
     });
 
     const sale = prisma.sale.delete({
-      where: { id: id as string },
+      where: { id: id },
     });
 
     const [saleDeleted, productSaleDeleted] = await prisma.$transaction([
       productSale,
       sale,
+      ...productQuantity.map((product) =>{
+        return prisma.product.update({
+          where: { id: product.id },
+          data: {
+            stock: {
+              increment: product.quantity,
+            },
+          },
+        });
+      }
+    ),
     ]);
-
-    res.status(200).json({ message: "Sale deleted" });
-  } catch (err) {
-    console.log(err);
-    if (err instanceof Error) res.status(500).json({ error: err.message });
-  }
+    return ({ message: "Purchase deleted" });
 };
+
+export const deleteSales = async (req: Request, res: Response) => {
+  const {ids} = req.body;
+  try {
+    const result = await Promise.all(ids.map((id: string) => deleteSale(id)))
+    res.status(200).json(result);
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2025") {
+        res.status(400).json({ error: "Data tidak ditemukan" });
+        return;
+      } else {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+    };
+  }
+}
