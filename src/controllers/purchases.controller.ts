@@ -11,6 +11,8 @@ const purchaseItemSchema = z.object({
 });
 
 export const getPurchases = async (req: Request, res: Response) => {
+  const includeProductsSuppliers = req.query.include_products_suppliers === "true";
+
   try {
     const purchases = await prisma.purchase.findMany({
       select: {
@@ -28,6 +30,38 @@ export const getPurchases = async (req: Request, res: Response) => {
         total: true,
       },
     });
+
+    if (includeProductsSuppliers) {
+      console.log('test');
+      const suppliers = await prisma.supplier.findMany({
+        where: { active: true },
+      });
+      const products = await prisma.product.findMany({
+        where: { active: true },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
+          createdAt: true,
+          updatedAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      res.status(200).json({
+        purchases,
+        suppliers,
+        products,
+      });
+      return;
+    }
+
     res.status(200).json(purchases);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });

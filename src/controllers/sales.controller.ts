@@ -79,8 +79,8 @@ export const createSale = async (req: Request, res: Response) => {
   try {
     const { customerId, products, cash, change } = req.body;
     // check if customer and products exist in the request body
-    if (!customerId || !products) {
-      res.status(400).json({ error: "Customer dan produk diperlukan" });
+    if (!products || !cash || !change) {
+      res.status(400).json({ error: "Data kurang lengkap" });
       return;
     }
 
@@ -107,30 +107,40 @@ export const createSale = async (req: Request, res: Response) => {
       },
     });
 
+    const total = products.reduce(
+      (acc: number, product: any) =>
+        acc +
+        productPrices.find((p) => p.id === product.id)?.price! *
+          product.quantity,
+      0
+    );
+
+    if (total > cash) {
+      res.status(400).json({ error: "Uang tidak cukup" });
+      return;
+    }
+
+    const createData: Prisma.SaleCreateInput = {
+      cash,
+      change,
+      total: total,
+      products: {
+        create: products.map((product: any) => ({
+          quantity: product.quantity,
+          productId: product.id,
+          // multiply the price of the product by the quantity
+          total:
+            productPrices.find((p) => p.id === product.id)?.price! *
+            product.quantity,
+        })),
+      },
+    };
+    
+    if (customerId) createData.customer = { connect: { id: customerId } };
+
     // create the sale
     const sale = prisma.sale.create({
-      data: {
-        customerId,
-        cash,
-        change,
-        total: products.reduce(
-          (acc: number, product: any) =>
-            acc +
-            productPrices.find((p) => p.id === product.id)?.price! *
-              product.quantity,
-          0
-        ),
-        products: {
-          create: products.map((product: any) => ({
-            quantity: product.quantity,
-            productId: product.id,
-            // multiply the price of the product by the quantity
-            total:
-              productPrices.find((p) => p.id === product.id)?.price! *
-              product.quantity,
-          })),
-        },
-      },
+      data: createData,
     });
 
     const result = await prisma.$transaction([
@@ -162,6 +172,7 @@ export const createSale = async (req: Request, res: Response) => {
       }
     }
   }
+
 };
 
 export const updateSale = async (req: Request, res: Response) => {

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { AuthenticatedRequest } from "../utils/requestType";
 
 const prisma = new PrismaClient();
 
@@ -8,7 +9,7 @@ const categorySchema = z.object({
   name: z.string()
 });
 
-export const getCategories = async (req: Request, res: Response) => {
+export const getCategories = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const categories = await prisma.category.findMany();
     res.status(200).json(categories);

@@ -12,6 +12,7 @@ const productSchema = z.object({
 });
 
 export const getProducts = async (req: Request, res: Response) => {
+  const includeCategories = req.query.include_categories === "true";
   try {
     const products = await prisma.product.findMany({
       where: { active: true },
@@ -30,6 +31,11 @@ export const getProducts = async (req: Request, res: Response) => {
         },
       },
     });
+    if (includeCategories) {
+      const categories = await prisma.category.findMany();
+      res.status(200).json({ products, categories });
+      return;
+    }
     res.status(200).json(products);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });

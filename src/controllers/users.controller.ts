@@ -13,6 +13,7 @@ const userSchema = z.object({
 });
 
 export const getUsers = async (req: Request, res: Response) => {
+  const includeRoles = req.query.include_roles === "true";
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -24,6 +25,11 @@ export const getUsers = async (req: Request, res: Response) => {
         updatedAt: true,
       },
     });
+    if (includeRoles) {
+      const roles = await prisma.role.findMany();
+      res.status(200).json({ users, roles });
+      return;
+    }
     res.status(200).json(users);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
@@ -55,12 +61,17 @@ export const getUser = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
-  const { name, username, password, roleId } = req.body;
+  const { name, username, password, confirmPassword, roleId } = req.body;
   
-  if (!name || !username || !password || !roleId) {
+  if (!name || !username || !password || !confirmPassword ||!roleId) {
     res.status(400).json({
       error: "Nama, Username, Password, dan Role tidak boleh kosong",
     });
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    res.status(400).json({ error: "Password tidak sama" });
     return;
   }
 
