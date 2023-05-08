@@ -3,10 +3,7 @@ FROM node:19.7.0
 # Create app directory
 WORKDIR /app
 
-# Install app dependencies
-COPY package*.json /app
+COPY . .
 RUN npm install
 
-# Bundle app source
-COPY . .
-CMD npm run build && npm run start
+CMD ["npm", "start-2"]
