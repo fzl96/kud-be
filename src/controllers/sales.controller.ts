@@ -16,6 +16,12 @@ export const getSales = async (req: Request, res: Response) => {
         createdAt: true,
         updatedAt: true,
         total: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
         customer: {
           select: {
             id: true,
