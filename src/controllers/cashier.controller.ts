@@ -45,9 +45,9 @@ export const getCashier = async (req: Request, res: Response) => {
 
 export const postCashier = async (req: Request, res: Response) => {
   try {
-    const { customerId, products, cash, change } = req.body;
+    const { customerId, products, cash, change, cashierId } = req.body;
     // check if customer and products exist in the request body
-    if (!products || !cash || change < 0) {
+    if (!products || !cash || change < 0 || !cashierId) {
       res.status(400).json({ error: "Data kurang lengkap" });
       return;
     }
@@ -105,6 +105,7 @@ export const postCashier = async (req: Request, res: Response) => {
       cash,
       change,
       total: total,
+      user: { connect: { id: cashierId } },
       products: {
         create: products.map((product: any) => ({
           quantity: product.quantity,

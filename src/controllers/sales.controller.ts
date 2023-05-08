@@ -54,6 +54,12 @@ export const getSale = async (req: Request, res: Response) => {
             phone: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
       },
     });
     res.status(200).json({
@@ -67,6 +73,7 @@ export const getSale = async (req: Request, res: Response) => {
         quantity: product.quantity,
         name: product.product.name,
       })),
+      cashier: sale?.user,
       createdAt: sale?.createdAt,
       updatedAt: sale?.updatedAt,
     });
@@ -77,9 +84,9 @@ export const getSale = async (req: Request, res: Response) => {
 
 export const createSale = async (req: Request, res: Response) => {
   try {
-    const { customerId, products, cash, change } = req.body;
+    const { customerId, products, cash, change, cashierId } = req.body;
     // check if customer and products exist in the request body
-    if (!products || !cash || !change) {
+    if (!products || !cash || change < 0 || !cashierId) {
       res.status(400).json({ error: "Data kurang lengkap" });
       return;
     }
@@ -104,8 +111,21 @@ export const createSale = async (req: Request, res: Response) => {
       select: {
         id: true,
         price: true,
+        stock: true,
       },
     });
+
+    // check if the product is in stock
+    const isProductInStock = products.every(
+      (product: any) =>
+        productPrices.find((p) => p.id === product.id)?.stock! >=
+        product.quantity
+    );
+
+    if (!isProductInStock) {
+      res.status(400).json({ error: "Stok tidak cukup" });
+      return;
+    }
 
     const total = products.reduce(
       (acc: number, product: any) =>
@@ -124,6 +144,7 @@ export const createSale = async (req: Request, res: Response) => {
       cash,
       change,
       total: total,
+      user: { connect: { id: cashierId } },
       products: {
         create: products.map((product: any) => ({
           quantity: product.quantity,
@@ -172,7 +193,6 @@ export const createSale = async (req: Request, res: Response) => {
       }
     }
   }
-
 };
 
 export const updateSale = async (req: Request, res: Response) => {
