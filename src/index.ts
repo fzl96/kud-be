@@ -35,7 +35,7 @@ app.use(express.json());
 app.use(cors(
   {
     credentials: true,
-    origin: "https://kud.onrender.com",
+    origin: ["http://localhost:5173", "https://kud.onrender.com"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
   }
@@ -58,6 +58,5 @@ app.use('/cashier', authenticateToken, authorizeCashier, cashierRoute);
 
 app.listen(port, () =>
   console.log(`
-🚀 Server ready at: http://localhost:${port}
-⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`)
+🚀 Server ready at: http://localhost:${port}`)
 );
