@@ -1,9 +1,8 @@
-FROM node:19.7.0
-
-# Create app directory
-WORKDIR /app
-
+FROM node:lts 
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
 COPY . .
 RUN npm install
-
-CMD ["npm", "start-2"]
+RUN npm run build
+EXPOSE 8080
+CMD ["npm","start"]
