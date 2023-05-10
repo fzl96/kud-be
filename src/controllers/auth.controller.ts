@@ -16,7 +16,17 @@ export const signIn = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { username },
-      include: { role: true },
+      include: { role: {
+        select: {
+          id: true,
+          name: true,
+          permissions: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }},
     });
 
     if (!user) {
@@ -38,7 +48,7 @@ export const signIn = async (req: Request, res: Response) => {
       role: {
         id: user.role.id,
         name: user.role.name,
-        permissions: user.role.permissions,
+        permissions: user.role.permissions.map((permission) => permission.name),
       },  
     };
 

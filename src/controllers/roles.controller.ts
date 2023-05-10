@@ -1,14 +1,36 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { Request, Response } from "express";
 
+
 const prisma = new PrismaClient({
   errorFormat: "pretty",
 });
 
 export const getRoles = async (req: Request, res: Response) => {
   try {
-    const roles = await prisma.role.findMany();
-    res.status(200).json(roles);
+    const roles = await prisma.role.findMany({
+      include: {
+        permissions: {
+          select: {
+            name: true,
+          },
+        }
+      }
+    });
+    if (!roles) {
+      res.status(200).json(roles);
+    }
+    const rolesMapped = roles.map((role) => {
+      return {
+        id: role.id,
+        name: role.name,
+        createdAt: role.createdAt,
+        updatedAt: role.updatedAt,
+        permissions: role.permissions.map((permission) => permission.name),
+      }
+    }
+    );
+    res.status(200).json(rolesMapped);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
@@ -19,12 +41,26 @@ export const getRole = async (req: Request, res: Response) => {
   try {
     const role = await prisma.role.findUnique({
       where: { id: id as string },
+      include: {
+        permissions: {
+          select: {
+            name: true,
+          },
+        }
+      }
+
     });
     if (!role) {
       res.status(404).json({ error: "Role tidak ditemukan" });
       return;
     }
-    res.status(200).json(role);
+    res.status(200).json({
+      id: role.id,
+      name: role.name,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+      permissions: role.permissions.map((permission) => permission.name),
+    });
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }

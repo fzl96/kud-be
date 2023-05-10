@@ -48,7 +48,7 @@ app.get("/dashboard/:year", authenticateToken, authorizeDashboard, getSalesData)
 app.use("/auth", authRoute);
 app.use("/categories", authenticateToken, authorizeCategories, categoriesRoute);
 app.use("/products", authenticateToken, authorizeProducts, productsRoute);
-app.use("/users", authenticateToken, authorizeUsers, usersRoute);
+app.use("/users", usersRoute);
 app.use("/roles", authenticateToken, authorizeRoles, rolesRoute);
 app.use("/customers", authenticateToken, authorizeCustomers, customersRoute);
 app.use("/sales", authenticateToken, authorizeSales, salesRoute);

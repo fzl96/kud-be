@@ -4,29 +4,143 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 const main = async () => {
-  const role = await prisma.role.create({
-    data: {
-      name: "admin",
-      permissions: {
-        set: ["dashboard", "cashier", "categories", "products", "customers", "purchases", "sales", "suppliers", "users", "roles"],
-      },
-    },
-  });
+  const resources = [
+    'dashboard',
+    'categories',
+    'products',
+    'suppliers',
+    'sales',
+    'customers',
+    'purchases',
+    'users'
+  ];
+  // for (const resource of resources) {
+  //   await prisma.permission.create({
+  //     data: {
+  //       name: `create_${resource}`,
+  //     }
+  //   });
+  //   await prisma.permission.create({
+  //     data: {
+  //       name: `read_${resource}`,
+  //     }
+  //   });
+  //   await prisma.permission.create({
+  //     data: {
+  //       name: `update_${resource}`,
+  //     }
+  //   });
+  //   await prisma.permission.create({
+  //     data: {
+  //       name: `delete_${resource}`,
+  //     }
+  //   });
+  // }
 
-  const salt = await bcrypt.genSalt(10);
-  const password = await bcrypt.hash("1234", salt);
-  const user = await prisma.user.create({
-    data: {
-      name: "Pozyomka",
-      username: "pozy",
-      password: password,
-      role: {
-        connect: { id: role.id },
-      },
-    },
-  });
+  // const permissions = await prisma.permission.findMany();
 
-  console.log({ role, user });
+  // const adminRole = await prisma.role.create({
+  //   data: {
+  //     name: 'Admin',
+  //     permissions: {
+  //       connect: permissions.map((permission) => ({ id: permission.id }))
+  //     }
+  //   }
+  // });
+
+  // // create cashier role where they can only read and create sales
+  // const cashierRole = await prisma.role.create({
+  //   data: {
+  //     name: 'Kasir',
+  //     permissions: {
+  //       connect: [
+  //         {
+  //           name: 'read_sales'
+  //         },
+  //         {
+  //           name: 'create_sales'
+  //         },
+  //         {
+  //           name: 'delete_sales'
+  //         },
+  //         {
+  //           name: 'read_customers',
+  //         },
+  //         {
+  //           name: 'create_customers',
+  //         },
+  //         {
+  //           name: 'update_customers',
+  //         },
+  //         {
+  //           name: 'delete_customers',
+  //         },
+  //         {
+  //           name: 'read_products',
+  //         }
+  //       ]
+  //     }
+  //   }
+  // });
+
+  // // create a role named 'Ketua' where they can only read dashboard
+  // const ketuaRole = await prisma.role.create({
+  //   data: {
+  //     name: 'Ketua',
+  //     permissions: {
+  //       connect: [
+  //         {
+  //           name: 'read_dashboard'
+  //         }, 
+  //       ]
+  //     }
+  //   }
+  // });
+
+  // const bendaharaRole = await prisma.role.create({
+  //   data: {
+  //     name: 'Bendahara',
+  //     permissions: {
+  //       connect: [
+  //         {
+  //           name: 'read_dashboard'
+  //         }, 
+  //         {
+  //           name: 'read_purchases'
+  //         }, 
+  //         {
+  //           name: 'create_purchases'
+  //         }, 
+  //         {
+  //           name: 'update_purchases'
+  //         }, 
+  //         {
+  //           name: 'delete_purchases'
+  //         }, 
+  //         {
+  //           name: 'read_sales'
+  //         }, 
+  //         {
+  //           name: 'delete_sales'
+  //         }, 
+  //       ]
+  //     }
+  //   }
+  // });
+
+  // const salt = await bcrypt.genSalt(10);
+  // const hashedPassword = await bcrypt.hash('1234', salt);
+
+  // const admin = await prisma.user.create({
+  //   data: {
+  //     name: 'Pozyomka',
+  //     username: 'pozy',
+  //     password: hashedPassword,
+  //     role: {
+  //       connect: { id: adminRole.id }
+  //     }
+  //   }
+  // });
 };
 
 main()

@@ -20,17 +20,47 @@ export const getUsers = async (req: Request, res: Response) => {
         id: true,
         name: true,
         username: true,
-        role: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permissions: {
+              select: {
+                name: true,
+              }
+            },
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },
     });
-    if (includeRoles) {
-      const roles = await prisma.role.findMany();
-      res.status(200).json({ users, roles });
+    
+    if (!users) {
+      res.status(404).json(users);
       return;
     }
-    res.status(200).json(users);
+    const mappedUsers = users.map((user) => {
+      return {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        role: {
+          id: user.role.id,
+          name: user.role.name,
+          permissions: user.role.permissions.map((permission) => permission.name),
+        }
+      }
+    });
+
+    if (includeRoles) {
+      const roles = await prisma.role.findMany();
+      res.status(200).json({ users: mappedUsers, roles });
+      return;
+    }
+    res.status(200).json(mappedUsers);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
@@ -45,7 +75,17 @@ export const getUser = async (req: Request, res: Response) => {
         id: true,
         name: true,
         username: true,
-        role: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permissions: {
+              select: {
+                name: true,
+              }
+            }
+          }
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -54,7 +94,20 @@ export const getUser = async (req: Request, res: Response) => {
       res.status(404).json({ error: "User tidak ditemukan" });
       return;
     }
-    res.status(200).json(user);
+    const newUser = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      role: {
+        id: user.role.id,
+        name: user.role.name,
+        permissions: user.role.permissions.map((permission) => permission.name),
+      },
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    res.status(200).json(newUser);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
