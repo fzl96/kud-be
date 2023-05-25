@@ -39,6 +39,7 @@ app.use(
       "http://localhost:5173",
       "https://kud.onrender.com",
       "http://localhost:3000",
+      "https://kud-fe.onrender.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
