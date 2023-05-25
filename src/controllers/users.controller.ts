@@ -27,7 +27,7 @@ export const getUsers = async (req: Request, res: Response) => {
             permissions: {
               select: {
                 name: true,
-              }
+              },
             },
           },
         },
@@ -35,7 +35,7 @@ export const getUsers = async (req: Request, res: Response) => {
         updatedAt: true,
       },
     });
-    
+
     if (!users) {
       res.status(404).json(users);
       return;
@@ -50,9 +50,11 @@ export const getUsers = async (req: Request, res: Response) => {
         role: {
           id: user.role.id,
           name: user.role.name,
-          permissions: user.role.permissions.map((permission) => permission.name),
-        }
-      }
+          permissions: user.role.permissions.map(
+            (permission) => permission.name
+          ),
+        },
+      };
     });
 
     if (includeRoles) {
@@ -82,9 +84,9 @@ export const getUser = async (req: Request, res: Response) => {
             permissions: {
               select: {
                 name: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         createdAt: true,
         updatedAt: true,
@@ -115,8 +117,8 @@ export const getUser = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   const { name, username, password, confirmPassword, roleId } = req.body;
-  
-  if (!name || !username || !password || !confirmPassword ||!roleId) {
+
+  if (!name || !username || !password || !confirmPassword || !roleId) {
     res.status(400).json({
       error: "Nama, Username, Password, dan Role tidak boleh kosong",
     });
@@ -158,9 +160,16 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, username, newPassword, currentPassword, roleId } = req.body;
+  const {
+    name,
+    username,
+    newPassword,
+    currentPassword,
+    confirmPassword,
+    roleId,
+  } = req.body;
 
-  if (!name && !username && !newPassword && !roleId) {
+  if (!name && !username && !newPassword && !confirmPassword && !roleId) {
     res.status(200).json({
       error: "Tidak ada data yang diperbarui",
     });
@@ -172,7 +181,16 @@ export const updateUser = async (req: Request, res: Response) => {
     if (name) updateData.name = name;
     if (username) updateData.username = username;
     if (newPassword) {
+      if (!confirmPassword) {
+        res.status(400).json({ error: "Konfirmasi password tidak ada" });
+        return;
+      }
       // compare currentPassword with password in database
+      if (newPassword !== confirmPassword) {
+        res.status(400).json({ error: "Password tidak sama" });
+        return;
+      }
+
       const user = await prisma.user.findUnique({
         where: { id: id as string },
         select: { password: true },
@@ -243,4 +261,4 @@ export const deleteUsers = async (req: Request, res: Response) => {
       }
     }
   }
-}
+};

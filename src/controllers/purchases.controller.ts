@@ -11,7 +11,8 @@ const purchaseItemSchema = z.object({
 });
 
 export const getPurchases = async (req: Request, res: Response) => {
-  const includeProductsSuppliers = req.query.include_products_suppliers === "true";
+  const includeProductsSuppliers =
+    req.query.include_products_suppliers === "true";
 
   try {
     const purchases = await prisma.purchase.findMany({
@@ -19,23 +20,17 @@ export const getPurchases = async (req: Request, res: Response) => {
         id: true,
         createdAt: true,
         updatedAt: true,
-        products: {
-          select: {
-            quantity: true,
-            productId: true,
-            purchasePrice: true,
-          },
-        },
         supplier: true,
         total: true,
       },
     });
 
     if (includeProductsSuppliers) {
-      console.log('test');
+      console.log("test");
       const suppliers = await prisma.supplier.findMany({
         where: { active: true },
       });
+
       const products = await prisma.product.findMany({
         where: { active: true },
         select: {
@@ -130,8 +125,9 @@ export const createPurchase = async (req: Request, res: Response) => {
     const itemArray = purchaseItemSchema.array().parse(items);
   } catch (err) {
     console.log(err);
-    if (err instanceof Error) res.status(400).json({ error: "Data tidak valid" });  
-    return
+    if (err instanceof Error)
+      res.status(400).json({ error: "Data tidak valid" });
+    return;
   }
 
   try {
@@ -160,7 +156,7 @@ export const createPurchase = async (req: Request, res: Response) => {
     const result = await prisma.$transaction([
       purchase,
       ...items.map((item: any) => {
-        return prisma.product.update ({
+        return prisma.product.update({
           where: {
             id: item.id,
           },
@@ -183,7 +179,7 @@ export const createPurchase = async (req: Request, res: Response) => {
         res.status(500).json({ error: err.message });
         return;
       }
-    };
+    }
   }
 };
 
@@ -198,10 +194,11 @@ export const updatePurchase = async (req: Request, res: Response) => {
   try {
     const itemArray = purchaseItemSchema.array().parse(items);
   } catch (err) {
-    if (err instanceof Error) res.status(400).json({ error: "Data tidak valid" });  
-    return
+    if (err instanceof Error)
+      res.status(400).json({ error: "Data tidak valid" });
+    return;
   }
-  
+
   try {
     const previousPurchaseItem = await prisma.purchaseItem.findMany({
       where: {
@@ -211,19 +208,19 @@ export const updatePurchase = async (req: Request, res: Response) => {
 
     const itemToCreate = items.filter(
       (item: any) => !previousPurchaseItem.find((i) => i.productId === item.id)
-    )
-     
-    const itemToUpdate = items.filter(
-      (item: any) => previousPurchaseItem.find((i) => i.productId === item.id)
-    )
+    );
+
+    const itemToUpdate = items.filter((item: any) =>
+      previousPurchaseItem.find((i) => i.productId === item.id)
+    );
 
     const itemToDelete = previousPurchaseItem.filter(
       (item) => !items.find((i: any) => i.id === item.productId)
-    )
+    );
 
     const updateData: Prisma.PurchaseUpdateInput = {};
 
-    if (supplierId) updateData.supplier = { connect : { id: supplierId }};
+    if (supplierId) updateData.supplier = { connect: { id: supplierId } };
     if (items.length > 0) {
       updateData.products = {
         create: itemToCreate.map((item: any) => ({
@@ -241,14 +238,14 @@ export const updatePurchase = async (req: Request, res: Response) => {
             purchaseId_productId: {
               purchaseId: id as string,
               productId: item.id,
-            }
+            },
           },
           data: {
             quantity: item.quantity,
             purchasePrice: item.purchasePrice,
             total: item.purchasePrice * item.quantity,
           },
-        })),    
+        })),
         delete: itemToDelete.map((item) => ({
           purchaseId_productId: {
             purchaseId: id as string,
@@ -262,8 +259,6 @@ export const updatePurchase = async (req: Request, res: Response) => {
       );
     }
 
-
-
     const purchase = prisma.purchase.update({
       where: { id: id as string },
       data: updateData,
@@ -272,7 +267,7 @@ export const updatePurchase = async (req: Request, res: Response) => {
     const result = await prisma.$transaction([
       purchase,
       ...itemToCreate.map((item: any) => {
-        return prisma.product.update ({
+        return prisma.product.update({
           where: {
             id: item.id,
           },
@@ -284,20 +279,22 @@ export const updatePurchase = async (req: Request, res: Response) => {
         });
       }),
       ...itemToUpdate.map((item: any) => {
-        return prisma.product.update ({
+        return prisma.product.update({
           where: {
             id: item.id,
           },
           data: {
             stock: {
-              increment: item.quantity - (previousPurchaseItem.find((i) => i.productId === item.id)?.quantity?? 0),
+              increment:
+                item.quantity -
+                (previousPurchaseItem.find((i) => i.productId === item.id)
+                  ?.quantity ?? 0),
             },
           },
         });
-      }
-      ),
+      }),
       ...itemToDelete.map((item) => {
-        return prisma.product.update ({
+        return prisma.product.update({
           where: {
             id: item.productId,
           },
@@ -321,55 +318,57 @@ export const updatePurchase = async (req: Request, res: Response) => {
         res.status(500).json({ error: err.message });
         return;
       }
-    };
+    }
   }
 };
 
 const deletePurchase = async (id: string) => {
-    const previousPurchaseItem = await prisma.purchaseItem.findMany({
+  const previousPurchaseItem = await prisma.purchaseItem.findMany({
+    where: {
+      purchaseId: id as string,
+    },
+  });
+
+  if (!previousPurchaseItem) {
+    await prisma.purchase.delete({
+      where: {
+        id: id as string,
+      },
+    });
+  }
+
+  const result = await prisma.$transaction([
+    ...previousPurchaseItem.map((item) =>
+      prisma.product.update({
+        where: {
+          id: item.productId,
+        },
+        data: {
+          stock: {
+            decrement: item.quantity,
+          },
+        },
+      })
+    ),
+
+    prisma.purchaseItem.deleteMany({
       where: {
         purchaseId: id as string,
       },
-    });
-
-    if (!previousPurchaseItem) {
-      await prisma.purchase.delete({
-        where: {
-          id: id as string
-        }
-      })
-    }
-
-    const result = await prisma.$transaction([
-      ...previousPurchaseItem.map((item) =>  
-        prisma.product.update({
-          where: {
-            id: item.productId,
-          },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        })
-      ),
-
-      prisma.purchaseItem.deleteMany({
-        where: {
-          purchaseId: id as string,
-        },
-      }),
-      prisma.purchase.delete({
-        where: { id: id as string },
-      }),
-    ]);
-    return ({ message: "Purchase deleted" });
+    }),
+    prisma.purchase.delete({
+      where: { id: id as string },
+    }),
+  ]);
+  return { message: "Purchase deleted" };
 };
 
 export const deletePurchases = async (req: Request, res: Response) => {
   const { ids } = req.body;
   try {
-    const result = await Promise.all(ids.map((id: string) => deletePurchase(id)));
+    const result = await Promise.all(
+      ids.map((id: string) => deletePurchase(id))
+    );
     res.status(200).json(result);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -380,6 +379,6 @@ export const deletePurchases = async (req: Request, res: Response) => {
         res.status(500).json({ error: err.message });
         return;
       }
-    };
+    }
   }
-}
+};

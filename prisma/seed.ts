@@ -5,14 +5,14 @@ const prisma = new PrismaClient();
 
 const main = async () => {
   const resources = [
-    'dashboard',
-    'categories',
-    'products',
-    'suppliers',
-    'sales',
-    'customers',
-    'purchases',
-    'users'
+    "dashboard",
+    "categories",
+    "products",
+    "suppliers",
+    "sales",
+    "customers",
+    "purchases",
+    "users",
   ];
   // for (const resource of resources) {
   //   await prisma.permission.create({
@@ -83,7 +83,6 @@ const main = async () => {
   //   }
   // });
 
-  // // create a role named 'Ketua' where they can only read dashboard
   // const ketuaRole = await prisma.role.create({
   //   data: {
   //     name: 'Ketua',
@@ -91,7 +90,7 @@ const main = async () => {
   //       connect: [
   //         {
   //           name: 'read_dashboard'
-  //         }, 
+  //         },
   //       ]
   //     }
   //   }
@@ -104,25 +103,32 @@ const main = async () => {
   //       connect: [
   //         {
   //           name: 'read_dashboard'
-  //         }, 
+  //         },
   //         {
   //           name: 'read_purchases'
-  //         }, 
+  //         },
   //         {
   //           name: 'create_purchases'
-  //         }, 
+  //         },
   //         {
   //           name: 'update_purchases'
-  //         }, 
+  //         },
   //         {
   //           name: 'delete_purchases'
-  //         }, 
+  //         },
+  // {
+  //   name: 'read_products',
+  // }
+  // {
+  //   name: 'read_suppliers',
+  // }
+
   //         {
   //           name: 'read_sales'
-  //         }, 
+  //         },
   //         {
   //           name: 'delete_sales'
-  //         }, 
+  //         },
   //       ]
   //     }
   //   }
@@ -143,4 +149,4 @@ const main = async () => {
   // });
 };
 
-main()
+main();

@@ -68,7 +68,7 @@ export const createSupplier = async (req: Request, res: Response) => {
       where: { name: name },
       update: updateData,
       create: { name, address, phone },
-    })
+    });
     res.status(201).json(supplier);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -96,16 +96,14 @@ export const updateSupplier = async (req: Request, res: Response) => {
     return;
   }
 
-  const updateData: Prisma.SupplierUpdateInput = {};
-
-  if (name) updateData.name = name;
-  if (address) updateData.address = address;
-  if (phone) updateData.phone = phone;
- 
   try {
     const supplier = await prisma.supplier.update({
       where: { id: id as string },
-      data: updateData,
+      data: {
+        name,
+        address,
+        phone,
+      },
     });
     res.status(200).json({ message: "Supplier updated" });
   } catch (err) {
@@ -119,17 +117,15 @@ export const updateSupplier = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteSupplier = async (req: Request, res: Response) => {
-  const { id } = req.params;
+const deleteSupplierFn = async (id: string) => {
   try {
     const supplier = await prisma.supplier.findUnique({
       where: { id: id as string },
       include: { purchases: true },
-    })
+    });
 
     if (!supplier) {
-      res.status(404).json({ error: "Supplier tidak ditemukan" });
-      return;
+      return { error: "Supplier tidak ditemukan" };
     }
 
     if (supplier.purchases.length > 0) {
@@ -137,24 +133,44 @@ export const deleteSupplier = async (req: Request, res: Response) => {
         where: { id: id as string },
         data: {
           active: false,
-        }
-      })
-      res.status(200).json({ message: "Supplier dinonaktifkan" });
-      return;
+        },
+      });
+
+      return { message: "Supplier dinonaktifkan" };
     }
 
     await prisma.supplier.delete({
       where: { id: id as string },
     });
 
-    res.status(200).json({ message: "Supplier dihapus" });
+    return { message: "Supplier dihapus" };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2025") {
-        res.status(404).json({ error: "Supplier tidak ditemukan" });
+        return { error: "Supplier tidak ditemukan" };
       } else {
-        res.status(500).json({ error: err.message });
+        return { error: err.message };
       }
     }
   }
+};
+
+export const deleteSupplier = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await deleteSupplierFn(id as string);
+  if (result?.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  res.status(200).json({ message: result?.message });
+};
+
+export const deleteSuppliers = async (req: Request, res: Response) => {
+  const { ids } = req.body;
+  const results = await Promise.all(
+    ids.map(async (id: string) => {
+      return await deleteSupplierFn(id);
+    })
+  );
+  res.status(200).json(results);
 };

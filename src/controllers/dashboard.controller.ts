@@ -3,14 +3,12 @@ import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
-
 interface resultData {
-  month: number
-  totalsales: number
-  totalpurchases: number
-  salescount: number
+  month: number;
+  totalsales: number;
+  totalpurchases: number;
+  salescount: number;
 }
-
 
 const getData = async (year: number) => {
   const result: resultData[] = await prisma.$queryRaw`
@@ -26,7 +24,11 @@ const getData = async (year: number) => {
         NULL as totalPurchases,
         "s"."id" as saleId
       FROM "Sale" as "s"
-      WHERE "s"."createdAt" >= ${new Date(year, 0, 1)} AND "s"."createdAt" < ${new Date(year + 1, 0, 1)}
+      WHERE "s"."createdAt" >= ${new Date(
+        year,
+        0,
+        1
+      )} AND "s"."createdAt" < ${new Date(year + 1, 0, 1)}
       UNION ALL
       SELECT 
         EXTRACT(MONTH FROM "p"."createdAt") as month, 
@@ -34,10 +36,14 @@ const getData = async (year: number) => {
         "p"."total" as totalPurchases,
         NULL as saleId
       FROM "Purchase" as "p"
-      WHERE "p"."createdAt" >= ${new Date(year, 0, 1)} AND "p"."createdAt" < ${new Date(year + 1, 0, 1)}
+      WHERE "p"."createdAt" >= ${new Date(
+        year,
+        0,
+        1
+      )} AND "p"."createdAt" < ${new Date(year + 1, 0, 1)}
     ) as subquery
     GROUP BY month;
-  `
+  `;
 
   const data = result.map((item) => {
     return {
@@ -45,10 +51,10 @@ const getData = async (year: number) => {
       revenue: item.totalsales || 0,
       spending: item.totalpurchases || 0,
       salesCount: Number(item.salescount) || 0,
-    }
-  })
-  
-  return data
+    };
+  });
+
+  return data;
 
   // const sales = await prisma.sale.findMany({
   //   where: {
@@ -63,7 +69,6 @@ const getData = async (year: number) => {
   //     createdAt: true,
   //   },
   // })
-
 
   // const result = [];
   // if (sales.length === 0) {
@@ -95,10 +100,10 @@ const getData = async (year: number) => {
   // }
 
   // return result
-}
+};
 
 export const getSalesData = async (req: Request, res: Response) => {
   const { year } = req.params;
   const data = await getData(Number(year));
   res.status(200).json(data);
-}
+};

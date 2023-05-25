@@ -53,6 +53,8 @@ export const getProduct = async (req: Request, res: Response) => {
         price: true,
         stock: true,
         active: true,
+        createdAt: true,
+        updatedAt: true,
         category: {
           select: {
             id: true,
@@ -97,7 +99,12 @@ export const createProduct = async (req: Request, res: Response) => {
 
     const product = await prisma.product.upsert({
       where: { name: name },
-      update: { active: true, stock, price, category: { connect: { id: categoryId } } },
+      update: {
+        active: true,
+        stock,
+        price,
+        category: { connect: { id: categoryId } },
+      },
       create: { name, categoryId, stock, price, active: true },
     });
 
@@ -154,7 +161,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       include: {
         purchases: true,
         sales: true,
-      }
+      },
     });
 
     if (product?.purchases.length || product?.sales.length) {
@@ -190,7 +197,7 @@ export const deleteProducts = async (req: Request, res: Response) => {
       include: {
         purchases: true,
         sales: true,
-      }
+      },
     });
 
     products.forEach(async (product) => {
@@ -216,4 +223,4 @@ export const deleteProducts = async (req: Request, res: Response) => {
       }
     }
   }
-}
+};

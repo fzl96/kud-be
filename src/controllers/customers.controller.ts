@@ -7,53 +7,210 @@ const prisma = new PrismaClient();
 const customerSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
+  groupId: z.string().optional(),
+  status: z.enum(["ANGGOTA", "KETUA"]).optional(),
 });
 
 export const getCustomers = async (req: Request, res: Response) => {
   try {
     const customers = await prisma.customer.findMany({
       where: { active: true },
+      include: {
+        Group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
-    res.status(200).json(customers);
+    if (!customers) {
+      res.status(200).json(customers);
+      return;
+    }
+    const mappedCustomers = customers.map((customer) => {
+      return {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        createdAt: customer.createdAt,
+        updatedAt: customer.updatedAt,
+        status: customer.memberRole,
+        group: {
+          id: customer.Group?.id,
+          name: customer.Group?.name,
+        },
+      };
+    });
+    res.status(200).json(mappedCustomers);
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
 };
 
 export const getCustomer = async (req: Request, res: Response) => {
+  const includeSales = req.query.include_sales === "true";
   const { id } = req.params;
   try {
+    if (!includeSales) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: id as string },
+        include: {
+          Group: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+      if (!customer) {
+        res.status(404).json({ error: "Customer tidak ditemukan" });
+        return;
+      }
+      res.status(200).json({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        status: customer.memberRole,
+        createdAt: customer.createdAt,
+        updatedAt: customer.updatedAt,
+        group: {
+          id: customer.Group?.id,
+          name: customer.Group?.name,
+        },
+      });
+      return;
+    }
     const customer = await prisma.customer.findUnique({
       where: { id: id as string },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        createdAt: true,
+        updatedAt: true,
+        memberRole: true,
+        Group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        sales: {
+          select: {
+            id: true,
+            total: true,
+            createdAt: true,
+            updatedAt: true,
+            products: {
+              select: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                  },
+                },
+                quantity: true,
+                total: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!customer) {
       res.status(404).json({ error: "Customer tidak ditemukan" });
       return;
     }
-    res.status(200).json(customer);
+    const mappedSales = customer.sales.map((sale) => {
+      return {
+        id: sale.id,
+        total: sale.total,
+        createdAt: sale.createdAt,
+        updatedAt: sale.updatedAt,
+        products: sale.products.map((product) => {
+          return {
+            id: product.product.id,
+            name: product.product.name,
+            price: product.product.price,
+            quantity: product.quantity,
+            total: product.total,
+          };
+        }),
+      };
+    });
+    res.status(200).json({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      status: customer.memberRole,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      group: {
+        id: customer.Group?.id,
+        name: customer.Group?.name,
+      },
+      sales: mappedSales,
+    });
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
 };
 
 export const createCustomer = async (req: Request, res: Response) => {
-  const { name, phone } = req.body;
-  
+  const { name, phone, groupId, status } = req.body;
+
   if (!name) {
     res.status(400).json({ error: "Nama tidak boleh kosong" });
-    return; 
+    return;
   }
 
   const isValid = customerSchema.safeParse(req.body);
-  
+
   if (!isValid.success) {
-    res.status(400).json({ error: "Nama dan nomor telepon harus string" });
+    res.status(400).json({ error: "Data tidak valid" });
     return;
   }
-  
+
   try {
+    if (groupId && status === "KETUA") {
+      const group = await prisma.group.findUnique({
+        where: { id: groupId as string },
+        include: { members: true },
+      });
+
+      if (!group) {
+        res.status(404).json({ error: "Group tidak ditemukan" });
+        return;
+      }
+
+      const leader = group.members.find(
+        (member) => member.memberRole === "KETUA"
+      );
+
+      if (leader) {
+        // change the leader to member
+        await prisma.customer.update({
+          where: { id: leader.id },
+          data: { memberRole: "ANGGOTA" },
+        });
+      }
+    }
+
+    const dataToCreate: Prisma.CustomerCreateInput = {
+      name,
+      phone,
+      memberRole: status,
+    };
+
+    if (groupId) {
+      dataToCreate.Group = { connect: { id: groupId } };
+    }
+
     const customer = await prisma.customer.create({
-      data: { name, phone },
+      data: dataToCreate,
     });
 
     res.status(201).json(customer);
@@ -65,28 +222,58 @@ export const createCustomer = async (req: Request, res: Response) => {
 
 export const updateCustomer = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, phone } = req.body;
+  const { name, phone, groupId, status } = req.body;
 
-  if (!name && !phone) {
-    res.status(400).json({ error: "Nama dan nomor telepon tidak boleh kosong" });
+  if (!name && !phone && !groupId && !status) {
+    res
+      .status(400)
+      .json({ error: "Nama dan nomor telepon tidak boleh kosong" });
     return;
   }
 
   const isValid = customerSchema.safeParse(req.body);
   if (!isValid.success) {
-    res.status(400).json({ error: "Nama dan nomor telepon harus string" });
+    res.status(400).json({ error: "Data tidak valid" });
     return;
   }
-  
+
   try {
-    const updateData: Prisma.CustomerUpdateInput = {};
+    const updateData: Prisma.CustomerUpdateInput = {
+      phone,
+    };
     if (name) updateData.name = name;
-    if (phone) updateData.phone = phone;
-    
+    if (groupId) updateData.Group = { connect: { id: groupId } };
+    if (status) updateData.memberRole = status;
+
+    if (groupId && status === "KETUA") {
+      const group = await prisma.group.findUnique({
+        where: { id: groupId as string },
+        include: { members: true },
+      });
+
+      if (!group) {
+        res.status(404).json({ error: "Group tidak ditemukan" });
+        return;
+      }
+
+      const leader = group.members.find(
+        (member) => member.memberRole === "KETUA"
+      );
+
+      if (leader) {
+        // change the leader to member
+        await prisma.customer.update({
+          where: { id: leader.id },
+          data: { memberRole: "ANGGOTA" },
+        });
+      }
+    }
+
     const customer = await prisma.customer.update({
       where: { id: id as string },
       data: updateData,
     });
+
     res.status(200).json(customer);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -95,12 +282,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
       } else {
         res.status(500).json({ error: err.message });
       }
-    };
+    }
   }
 };
 
-export const deleteCustomer = async (req: Request, res: Response) => {
-  const { id } = req.params;
+const deleteCustomersFn = async (id: string) => {
   try {
     const customer = await prisma.customer.findUnique({
       where: { id: id as string },
@@ -108,8 +294,7 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     });
 
     if (!customer) {
-      res.status(404).json({ error: "Customer tidak ditemukan" });
-      return;
+      return { error: "Customer tidak ditemukan" };
     }
 
     if (customer.sales.length) {
@@ -117,24 +302,46 @@ export const deleteCustomer = async (req: Request, res: Response) => {
         where: { id: id as string },
         data: {
           active: false,
-        }
+        },
       });
-      res.status(200).json({ message: "Customer dinonatikfkan" });
-      return;
+      return { message: "Customer dihapus" };
     }
 
     await prisma.customer.delete({
       where: { id: id as string },
     });
 
-    res.status(200).json({ message: "Customer dihapus" });
+    return { message: "Customer dihapus" };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2025") {
-        res.status(400).json({ error: "Customer tidak ditemukan" });
+        return { error: "Customer tidak ditemukan" };
       } else {
-        res.status(500).json({ error: err.message });
+        return { error: err.message };
       }
     }
   }
+};
+
+export const deleteCustomer = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await deleteCustomersFn(id as string);
+  if (result?.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  res.status(200).json({ message: result?.message });
+};
+
+export const deleteCustomers = async (req: Request, res: Response) => {
+  const { ids } = req.body;
+  const results = await Promise.all(
+    ids.map((id: string) => deleteCustomersFn(id))
+  );
+  const errors = results.filter((result) => result?.error);
+  if (errors.length) {
+    res.status(400).json({ errors });
+    return;
+  }
+  res.status(200).json({ message: "Customer dihapus" });
 };

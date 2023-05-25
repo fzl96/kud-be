@@ -43,27 +43,57 @@ model Permission {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  active    Boolean  @default(true)
-  sales     Sale[]
+  id         String     @id @default(cuid())
+  name       String
+  phone      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  active     Boolean    @default(true)
+  sales      Sale[]
+  Group      Group?     @relation(fields: [groupId], references: [id])
+  groupId    String?
+  memberRole MemberRole @default(ANGGOTA)
+}
+
+enum MemberRole {
+  ANGGOTA
+  KETUA
+}
+
+model Group {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  members   Customer[]
 }
 
 model Sale {
-  id         String        @id @default(cuid())
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  customer   Customer?     @relation(fields: [customerId], references: [id])
-  customerId String?
-  total      Float
-  cash       Float
-  change     Float
-  products   ProductSale[]
-  user       User          @relation(fields: [userId], references: [id])
-  userId     String
+  id            String        @id @default(cuid())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  customerId    String?
+  total         Float
+  cash          Float?
+  change        Float?
+  products      ProductSale[]
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  paymentMethod PaymentMethod @default(TUNAI)
+  status        SaleStatus    @default(SELESAI)
+  dueDate       DateTime?
+}
+
+enum SaleStatus {
+  SELESAI
+  PROSES
+  BATAL
+}
+
+enum PaymentMethod {
+  TUNAI
+  KREDIT
 }
 
 model Product {

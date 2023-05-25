@@ -16,11 +16,14 @@ export const getSales = async (req: Request, res: Response) => {
         createdAt: true,
         updatedAt: true,
         total: true,
+        paymentMethod: true,
+        dueDate: true,
+        status: true,
         user: {
           select: {
             id: true,
             name: true,
-          }
+          },
         },
         customer: {
           select: {
@@ -57,15 +60,14 @@ export const getSale = async (req: Request, res: Response) => {
           select: {
             id: true,
             name: true,
-            phone: true,
           },
         },
         user: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
     res.status(200).json({
@@ -74,6 +76,9 @@ export const getSale = async (req: Request, res: Response) => {
       total: sale?.total,
       cash: sale?.cash,
       change: sale?.change,
+      paymentMethod: sale?.paymentMethod,
+      status: sale?.status,
+      dueDate: sale?.dueDate,
       products: sale?.products.map((product) => ({
         id: product.productId,
         quantity: product.quantity,
@@ -90,9 +95,19 @@ export const getSale = async (req: Request, res: Response) => {
 
 export const createSale = async (req: Request, res: Response) => {
   try {
-    const { customerId, products, cash, change, cashierId } = req.body;
+    const {
+      customerId,
+      products,
+      cash,
+      change,
+      cashierId,
+      status,
+      paymentMethod,
+      dueDate,
+    } = req.body;
     // check if customer and products exist in the request body
-    if (!products || !cash || change < 0 || !cashierId) {
+    if (!products || !cashierId) {
+      console.log(products, cashierId);
       res.status(400).json({ error: "Data kurang lengkap" });
       return;
     }
@@ -141,14 +156,19 @@ export const createSale = async (req: Request, res: Response) => {
       0
     );
 
-    if (total > cash) {
-      res.status(400).json({ error: "Uang tidak cukup" });
-      return;
+    if (cash) {
+      if (total > cash) {
+        res.status(400).json({ error: "Uang tidak cukup" });
+        return;
+      }
     }
 
     const createData: Prisma.SaleCreateInput = {
       cash,
       change,
+      paymentMethod,
+      status,
+      dueDate,
       total: total,
       user: { connect: { id: cashierId } },
       products: {
@@ -162,7 +182,7 @@ export const createSale = async (req: Request, res: Response) => {
         })),
       },
     };
-    
+
     if (customerId) createData.customer = { connect: { id: customerId } };
 
     // create the sale
@@ -181,8 +201,7 @@ export const createSale = async (req: Request, res: Response) => {
             },
           },
         });
-      }
-      )
+      }),
     ]);
 
     res.status(201).json("Penjualan berhasil ditambahkan");
@@ -302,53 +321,51 @@ export const updateSale = async (req: Request, res: Response) => {
 };
 
 export const deleteSale = async (id: string) => {
+  // get the products in the sale
+  const products = await prisma.productSale.findMany({
+    where: {
+      saleId: id,
+    },
+  });
 
-    // get the products in the sale
-    const products = await prisma.productSale.findMany({
-      where: {
-        saleId: id,
-      },
-    });
+  // get the quantity of the products
+  const productQuantity = products.map((product) => ({
+    id: product.productId,
+    quantity: product.quantity,
+  }));
 
-    // get the quantity of the products
-    const productQuantity = products.map((product) => ({
-      id: product.productId,
-      quantity: product.quantity,
-    }));
+  // delete the sale and all the items
+  const productSale = prisma.productSale.deleteMany({
+    where: {
+      saleId: id,
+    },
+  });
 
-    // delete the sale and all the items
-    const productSale = prisma.productSale.deleteMany({
-      where: {
-        saleId: id,
-      },
-    });
+  const sale = prisma.sale.delete({
+    where: { id: id },
+  });
 
-    const sale = prisma.sale.delete({
-      where: { id: id },
-    });
-
-    const [saleDeleted, productSaleDeleted] = await prisma.$transaction([
-      productSale,
-      sale,
-      ...productQuantity.map((product) =>{
-        return prisma.product.update({
-          where: { id: product.id },
-          data: {
-            stock: {
-              increment: product.quantity,
-            },
+  const [saleDeleted, productSaleDeleted] = await prisma.$transaction([
+    productSale,
+    sale,
+    ...productQuantity.map((product) => {
+      return prisma.product.update({
+        where: { id: product.id },
+        data: {
+          stock: {
+            increment: product.quantity,
           },
-        });
-      }
-    ),
-    ]);
-    return ({ message: "Purchase deleted" });
+        },
+      });
+    }),
+  ]);
+  return { message: "Purchase deleted" };
 };
 
 export const deleteSales = async (req: Request, res: Response) => {
-  const {ids} = req.body;
+  const { ids } = req.body;
   try {
-    const result = await Promise.all(ids.map((id: string) => deleteSale(id)))
+    const result = await Promise.all(ids.map((id: string) => deleteSale(id)));
     res.status(200).json(result);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -359,6 +376,6 @@ export const deleteSales = async (req: Request, res: Response) => {
         res.status(500).json({ error: err.message });
         return;
       }
-    };
+    }
   }
-}
+};

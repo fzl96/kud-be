@@ -37,17 +37,27 @@ export const getCashier = async (req: Request, res: Response) => {
       getCustomers,
     ]);
 
-    res.status(200).json({products, customers});
+    res.status(200).json({ products, customers });
   } catch (err) {
     if (err instanceof Error) res.status(500).json({ error: err.message });
   }
-}
+};
 
 export const postCashier = async (req: Request, res: Response) => {
   try {
-    const { customerId, products, cash, change, cashierId } = req.body;
+    const {
+      customerId,
+      products,
+      cash,
+      change,
+      cashierId,
+      status,
+      paymentMethod,
+      dueDate,
+    } = req.body;
     // check if customer and products exist in the request body
-    if (!products || !cash || change < 0 || !cashierId) {
+    if (!products || !cashierId) {
+      console.log(products, cashierId);
       res.status(400).json({ error: "Data kurang lengkap" });
       return;
     }
@@ -96,14 +106,19 @@ export const postCashier = async (req: Request, res: Response) => {
       0
     );
 
-    if (total > cash) {
-      res.status(400).json({ error: "Uang tidak cukup" });
-      return;
+    if (cash) {
+      if (total > cash) {
+        res.status(400).json({ error: "Uang tidak cukup" });
+        return;
+      }
     }
 
     const createData: Prisma.SaleCreateInput = {
       cash,
       change,
+      paymentMethod,
+      status,
+      dueDate,
       total: total,
       user: { connect: { id: cashierId } },
       products: {
@@ -117,7 +132,7 @@ export const postCashier = async (req: Request, res: Response) => {
         })),
       },
     };
-    
+
     if (customerId) createData.customer = { connect: { id: customerId } };
 
     // create the sale
@@ -136,8 +151,7 @@ export const postCashier = async (req: Request, res: Response) => {
             },
           },
         });
-      }
-      )
+      }),
     ]);
 
     res.status(201).json("Penjualan berhasil ditambahkan");

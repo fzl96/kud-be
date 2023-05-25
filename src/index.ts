@@ -10,10 +10,11 @@ import salesRoute from "./routes/sales.route";
 import purchasesRoute from "./routes/purchases.route";
 import suppliersRoute from "./routes/suppliers.route";
 import authRoute from "./routes/auth.route";
+import groupsRoute from "./routes/groups.route";
 import cashierRoute from "./routes/cashier.route";
 import { getSalesData } from "./controllers/dashboard.controller";
 import { authenticateToken } from "./middleware/auth.middleware";
-import { 
+import {
   authorizeCategories,
   authorizeProducts,
   authorizeUsers,
@@ -26,35 +27,39 @@ import {
   authorizeCashier,
 } from "./middleware/permissions.middleware";
 
-
 const app: Express = express();
 const port = process.env.PORT || 8080;
 
 app.use(cookieParser());
 app.use(express.json());
-app.use(cors(
-  {
+app.use(
+  cors({
     credentials: true,
-    origin: ["http://localhost:5173", "https://kud.onrender.com"],
+    origin: [
+      "http://localhost:5173",
+      "https://kud.onrender.com",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  }
-));
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.get("/", authenticateToken, (req: any, res: Response) => {
-  res.json(req.user)
+  res.json(req.user);
 });
 
-app.get("/dashboard/:year", authenticateToken, authorizeDashboard, getSalesData);
+app.get("/dashboard/:year", authenticateToken, getSalesData);
 app.use("/auth", authRoute);
-app.use("/categories", authenticateToken, authorizeCategories, categoriesRoute);
-app.use("/products", authenticateToken, authorizeProducts, productsRoute);
+app.use("/categories", authenticateToken, categoriesRoute);
+app.use("/products", authenticateToken, productsRoute);
 app.use("/users", usersRoute);
-app.use("/roles", authenticateToken, authorizeRoles, rolesRoute);
-app.use("/customers", authenticateToken, authorizeCustomers, customersRoute);
-app.use("/sales", authenticateToken, authorizeSales, salesRoute);
-app.use("/purchases", authenticateToken, authorizePurchases, purchasesRoute);
-app.use("/suppliers", authenticateToken, authorizeSuppliers, suppliersRoute); 
-app.use('/cashier', authenticateToken, authorizeCashier, cashierRoute);
+app.use("/roles", authenticateToken, rolesRoute);
+app.use("/customers", authenticateToken, customersRoute);
+app.use("/sales", authenticateToken, salesRoute);
+app.use("/purchases", authenticateToken, purchasesRoute);
+app.use("/suppliers", authenticateToken, suppliersRoute);
+app.use("/cashier", authenticateToken, cashierRoute);
+app.use("/groups", groupsRoute);
 
 app.listen(port, () =>
   console.log(`

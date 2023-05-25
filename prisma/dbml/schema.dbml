@@ -40,6 +40,17 @@ Table Customer {
   updatedAt DateTime [not null]
   active Boolean [not null, default: true]
   sales Sale [not null]
+  Group Group
+  groupId String
+  memberRole MemberRole [not null, default: 'ANGGOTA']
+}
+
+Table Group {
+  id String [pk]
+  name String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  members Customer [not null]
 }
 
 Table Sale {
@@ -49,11 +60,14 @@ Table Sale {
   customer Customer
   customerId String
   total Float [not null]
-  cash Float [not null]
-  change Float [not null]
+  cash Float
+  change Float
   products ProductSale [not null]
   user User [not null]
   userId String [not null]
+  paymentMethod PaymentMethod [not null, default: 'TUNAI']
+  status SaleStatus [not null, default: 'SELESAI']
+  dueDate DateTime
 }
 
 Table Product {
@@ -131,7 +145,25 @@ Table PermissionToRole {
   rolesId String [ref: > Role.id]
 }
 
+Enum MemberRole {
+  ANGGOTA
+  KETUA
+}
+
+Enum SaleStatus {
+  SELESAI
+  PROSES
+  BATAL
+}
+
+Enum PaymentMethod {
+  TUNAI
+  KREDIT
+}
+
 Ref: User.roleId > Role.id
+
+Ref: Customer.groupId > Group.id
 
 Ref: Sale.customerId > Customer.id
 
