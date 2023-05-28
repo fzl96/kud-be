@@ -49,6 +49,7 @@ export const getSale = async (req: Request, res: Response) => {
           select: {
             quantity: true,
             productId: true,
+            total: true,
             product: {
               select: {
                 name: true,
@@ -83,6 +84,7 @@ export const getSale = async (req: Request, res: Response) => {
         id: product.productId,
         quantity: product.quantity,
         name: product.product.name,
+        total: product.total,
       })),
       cashier: sale?.user,
       createdAt: sale?.createdAt,

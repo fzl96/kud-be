@@ -20,6 +20,7 @@ export const getCashier = async (req: Request, res: Response) => {
         stock: true,
         createdAt: true,
         updatedAt: true,
+        barcode: true,
         category: {
           select: {
             id: true,
@@ -133,6 +134,7 @@ export const postCashier = async (req: Request, res: Response) => {
       },
     };
 
+    console.log(customerId);
     if (customerId) createData.customer = { connect: { id: customerId } };
 
     // create the sale

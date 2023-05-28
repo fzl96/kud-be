@@ -9,6 +9,7 @@ const productSchema = z.object({
   price: z.number().positive().optional(),
   stock: z.number().positive().optional(),
   categoryId: z.string().optional(),
+  barcode: z.string().optional(),
 });
 
 export const getProducts = async (req: Request, res: Response) => {
@@ -23,6 +24,7 @@ export const getProducts = async (req: Request, res: Response) => {
         stock: true,
         createdAt: true,
         updatedAt: true,
+        barcode: true,
         category: {
           select: {
             id: true,
@@ -53,6 +55,7 @@ export const getProduct = async (req: Request, res: Response) => {
         price: true,
         stock: true,
         active: true,
+        barcode: true,
         createdAt: true,
         updatedAt: true,
         category: {
@@ -74,10 +77,12 @@ export const getProduct = async (req: Request, res: Response) => {
 };
 
 export const createProduct = async (req: Request, res: Response) => {
-  const { name, categoryId, price, stock } = req.body;
+  const { name, categoryId, price, stock, barcode } = req.body;
 
   if (!name || !categoryId || !price || !stock) {
-    res.status(400).json({ error: "Semua field diperlukan" });
+    res
+      .status(400)
+      .json({ error: "Nama, Kategori, Harga, dan Stok diperlukan!" });
     return;
   }
 
@@ -104,8 +109,9 @@ export const createProduct = async (req: Request, res: Response) => {
         stock,
         price,
         category: { connect: { id: categoryId } },
+        barcode,
       },
-      create: { name, categoryId, stock, price, active: true },
+      create: { name, categoryId, stock, price, active: true, barcode },
     });
 
     res.status(201).json(product);
@@ -122,7 +128,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, categoryId, price, active } = req.body;
+  const { name, categoryId, price, active, barcode } = req.body;
 
   const isValid = productSchema.safeParse(req.body);
   if (!isValid.success) {
@@ -136,6 +142,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     if (categoryId) updateData.category = { connect: { id: categoryId } };
     if (price) updateData.price = price;
     if (active) updateData.active = active;
+    if (barcode) updateData.barcode = barcode;
 
     const product = await prisma.product.update({
       where: { id: id as string },

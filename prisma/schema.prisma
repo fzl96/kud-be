@@ -108,6 +108,7 @@ model Product {
   active     Boolean        @default(true)
   sales      ProductSale[]
   purchases  PurchaseItem[]
+  barcode    String?        @unique
 }
 
 model ProductSale {

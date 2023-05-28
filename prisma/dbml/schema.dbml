@@ -82,6 +82,7 @@ Table Product {
   active Boolean [not null, default: true]
   sales ProductSale [not null]
   purchases PurchaseItem [not null]
+  barcode String [unique]
 }
 
 Table ProductSale {
